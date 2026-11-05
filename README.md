@@ -67,7 +67,7 @@ Note: the final imputed dataset used for modelling (`impv2_phddata_230224`) was 
 
 ## Software
 
-- Stata [VERSION] — `mvrs`, `mi impute chained`
+- Stata — `mvrs`, `mi impute chained`
 - Python 3.11.7 — pandas 2.1.4, NumPy 1.26.4, statsmodels, lifelines 0.29.0, scikit-survival 0.23.0, pycox 0.2.3, PyTorch 2.4.0, torchtuples 0.2.2, scikit-learn 1.5.1, SurvivalEVAL, SciPy, matplotlib
 
 ## Licence
