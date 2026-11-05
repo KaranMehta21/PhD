@@ -1,0 +1,22 @@
+# Never commit data or patient-level outputs
+*.dta
+*.csv
+*.xlsx
+*.xls
+*.pkl
+*.pickle
+*.npz
+*.npy
+*.pt
+*.parquet
+*.feather
+*.sav
+*.log
+*.smcl
+*.gz
+*.zip
+data/
+outputs/
+models/
+.ipynb_checkpoints/
+__pycache__/
