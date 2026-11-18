@@ -17,6 +17,7 @@ folder that holds spline_maps.pkl, deepsurv_net.pt and phd_model_export\ (e.g. t
   set PHD_MODELS=G:\My Drive\PhD_final_submission\outputs\ch7\models      (Windows)
   export PHD_MODELS="$HOME/Google Drive/My Drive/PhD_final_submission/outputs/ch7/models"   (Mac)
 The exported *_slim.pkl files are used automatically when the originals are not there. RSF is not exported (stays at UCL).
+Spline terms use the exact formulas in spline_maps_exact.pkl (from phd_c7_fix_splines.py) when present, else the lookup table.
 """
 import os, sys, json, pickle, warnings
 import numpy as np
@@ -45,7 +46,7 @@ def load(name):
         return pickle.load(fh)
 
 
-SM = load("spline_maps.pkl")
+SM = load("spline_maps_exact.pkl") or load("spline_maps.pkl")   # exact formulas (phd_c7_fix_splines.py) if available
 if SM is None:
     sys.exit(f"spline_maps.pkl not found in {MODD} - run phd_c7_refit.py first")
 MAPS, INTER = SM["maps"], SM["interactions"]
@@ -84,7 +85,11 @@ def features(case, bundle):
             if x < lo or x > hi:
                 warn.append(f"{m['raw']}={x} outside data range {lo:.3g}-{hi:.3g}; clamped")
                 x = min(max(x, lo), hi)
-            row[c] = float(np.interp(x, m["x"], m["y"][:, k]))
+            if m.get("exact"):                     # exact cubic-spline formula: 1, x, x^2, x^3, (x - knot)^3+
+                bx = np.array([1.0, x, x ** 2, x ** 3] + [max(x - kn, 0.0) ** 3 for kn in m["knots"]])
+                row[c] = float(bx @ np.asarray(m["coef"])[:, k])
+            else:                                  # lookup table (interpolated)
+                row[c] = float(np.interp(x, m["x"], m["y"][:, k]))
         elif raw_name(c) in INTER:
             a, b = INTER[raw_name(c)]
             row[c] = SCALE.get(raw_name(c), 1.0) * float(case[a]) * float(case[b])
