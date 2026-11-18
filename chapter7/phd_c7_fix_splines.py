@@ -82,7 +82,13 @@ def local_knots(x, Y, frac=0.08):
             if groups and a_ <= groups[-1][1] + stp + 1e-12: groups[-1][1] = a_
             else: groups.append([a_, a_])
     # bracket = intersection-ish: from last start to first end of flagged windows
-    return [(max(lo, g[1]), min(hi, g[0] + span)) for g in groups]
+    out = []
+    for g0, g1 in groups:
+        a, z = max(lo, g1), min(hi, g0 + span)       # where all flagged windows overlap
+        if a >= z:                                    # long run of flagged windows: use its whole span
+            a, z = max(lo, g0), min(hi, g1 + span)
+        out.append((float(a), float(z)))
+    return out
 
 
 def refine(x, Y, kn, bounds, sweeps=40):
@@ -98,6 +104,8 @@ def refine(x, Y, kn, bounds, sweeps=40):
     for _ in range(sweeps):
         before = rms(kn)
         for j, (a, z) in enumerate(bounds):
+            if not a < z:
+                continue
             r = minimize_scalar(lambda v: rms(kn[:j] + [v] + kn[j + 1:]), bounds=(a, z), method="bounded",
                                 options={"xatol": 1e-11 * (np.ptp(x) + 1)})
             kn[j] = float(r.x)
@@ -127,6 +135,7 @@ for b, m in sorted(MAPS.items()):
     R = read_cols(sorted(set(raw_candidates + orig_terms)))
     best = None
     for raw in raw_candidates:
+      try:
         sub = R[[raw] + orig_terms].dropna().astype(float)
         if len(sub) < 100:
             continue
@@ -158,7 +167,11 @@ for b, m in sorted(MAPS.items()):
             for frac in (0.08, 0.05, 0.12):
                 br = local_knots(x, Y, frac)
                 if 1 <= len(br) <= 4:
-                    kn = refine(x, Y, [(a + z) / 2 for a, z in br], br)
+                    try:
+                        kn = refine(x, Y, [(a + z) / 2 for a, z in br], br)
+                    except Exception as ex:
+                        log(f"   (knot detection skipped at window {frac}: {type(ex).__name__})")
+                        continue
                     C, err = fit(x, Y, kn)
                     if err < best["err"]:
                         best = {"err": err, "knots": kn, "coef": C, "how": f"detected ({len(kn)} knots)", "raw": raw,
@@ -201,6 +214,8 @@ for b, m in sorted(MAPS.items()):
                             "old_err": old_err, "spread": spread}
                 if err < TOL:
                     break
+      except Exception as ex:
+        log(f"   {raw}: skipped after an error ({type(ex).__name__}: {str(ex)[:120]})")
     del R
     gc.collect()
     nm = dict(m)
